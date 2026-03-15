@@ -9,16 +9,16 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Priority, useNotes } from '@/context/notes-context';
+import { PRIORITY_CONFIG, Priority, useNotes } from '@/context/notes-context';
 
-const PRIORITIES: { value: Priority; label: string; color: string }[] = [
-  { value: 'important', label: 'Important', color: '#EF4444' },
-  { value: 'not-so-important', label: 'Not So Important', color: '#F59E0B' },
-  { value: 'for-fun', label: 'For Fun', color: '#10B981' },
-];
+const PRIORITIES = (Object.keys(PRIORITY_CONFIG) as Priority[]).map((value) => ({
+  value,
+  ...PRIORITY_CONFIG[value],
+}));
 
 export default function NoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,7 +29,7 @@ export default function NoteScreen() {
 
   const [title, setTitle] = useState(existingNote?.title ?? '');
   const [content, setContent] = useState(existingNote?.content ?? '');
-  const [priority, setPriority] = useState<Priority>(existingNote?.priority ?? 'not-so-important');
+  const [priority, setPriority] = useState<Priority>(existingNote?.priority ?? 'for-fun');
   const [isEditing, setIsEditing] = useState(isNew);
 
   const router = useRouter();
@@ -124,26 +124,34 @@ export default function NoteScreen() {
         )}
 
         <View style={styles.priorityRow}>
-          {PRIORITIES.map((p) => (
-            <TouchableOpacity
-              key={p.value}
-              style={[
-                styles.priorityPill,
-                priority === p.value && { backgroundColor: p.color, borderColor: p.color },
-                !isEditing && priority !== p.value && styles.priorityPillHidden,
-              ]}
-              onPress={() => isEditing && setPriority(p.value)}
-              activeOpacity={isEditing ? 0.7 : 1}>
-              <Text
-                style={[
-                  styles.priorityPillText,
-                  priority === p.value && styles.priorityPillTextActive,
-                  !isEditing && priority !== p.value && { color: 'transparent' },
-                ]}>
-                {p.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {PRIORITIES.map((p) => {
+            const pillStyle: ViewStyle[] = [
+              styles.priorityPill,
+              priority === p.value ? { backgroundColor: p.color, borderColor: p.color } : {},
+              !isEditing && priority !== p.value ? styles.priorityPillHidden : {},
+            ];
+            const textStyle = [
+              styles.priorityPillText,
+              priority === p.value && styles.priorityPillTextActive,
+              !isEditing && priority !== p.value && { color: 'transparent' as const },
+            ];
+            if (isEditing) {
+              return (
+                <TouchableOpacity
+                  key={p.value}
+                  style={pillStyle}
+                  onPress={() => setPriority(p.value)}
+                  activeOpacity={0.7}>
+                  <Text style={textStyle}>{p.label}</Text>
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <View key={p.value} style={pillStyle}>
+                <Text style={textStyle}>{p.label}</Text>
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.divider} />

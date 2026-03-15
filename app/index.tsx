@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Note, Priority, useNotes } from '@/context/notes-context';
+import { Note, PRIORITY_CONFIG, Priority, useNotes } from '@/context/notes-context';
 
 type FilterOption = 'all' | Priority;
 
@@ -21,12 +21,6 @@ const FILTERS: { value: FilterOption; label: string }[] = [
   { value: 'not-so-important', label: 'Not So Important' },
   { value: 'for-fun', label: 'For Fun' },
 ];
-
-const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }> = {
-  'important': { label: 'Important', color: '#EF4444' },
-  'not-so-important': { label: 'Not So Important', color: '#F59E0B' },
-  'for-fun': { label: 'For Fun', color: '#10B981' },
-};
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -56,7 +50,7 @@ function NoteCard({ note, onPress }: { note: Note; onPress: () => void }) {
         <Text style={styles.cardTitle} numberOfLines={1}>
           {note.title || 'Untitled'}
         </Text>
-        <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.color + '1A', borderColor: priorityConfig.color + '40' }]}>
+        <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.backgroundRgba, borderColor: priorityConfig.borderRgba }]}>
           <View style={[styles.priorityDot, { backgroundColor: priorityConfig.color }]} />
           <Text style={[styles.priorityBadgeText, { color: priorityConfig.color }]}>
             {priorityConfig.label}
