@@ -9,10 +9,16 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useNotes } from '@/context/notes-context';
+import { PRIORITY_CONFIG, Priority, useNotes } from '@/context/notes-context';
+
+const PRIORITIES = (Object.keys(PRIORITY_CONFIG) as Priority[]).map((value) => ({
+  value,
+  ...PRIORITY_CONFIG[value],
+}));
 
 export default function NoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,6 +29,7 @@ export default function NoteScreen() {
 
   const [title, setTitle] = useState(existingNote?.title ?? '');
   const [content, setContent] = useState(existingNote?.content ?? '');
+  const [priority, setPriority] = useState<Priority>(existingNote?.priority ?? 'for-fun');
   const [isEditing, setIsEditing] = useState(isNew);
 
   const router = useRouter();
@@ -35,13 +42,13 @@ export default function NoteScreen() {
       return;
     }
     if (isNew) {
-      await addNote(title.trim(), content.trim());
+      await addNote(title.trim(), content.trim(), priority);
     } else {
-      await updateNote(id, title.trim(), content.trim());
+      await updateNote(id, title.trim(), content.trim(), priority);
     }
     setIsEditing(false);
     if (isNew) router.back();
-  }, [isNew, title, content, id, addNote, updateNote, router]);
+  }, [isNew, title, content, priority, id, addNote, updateNote, router]);
 
   const handleDelete = useCallback(() => {
     Alert.alert('Delete Note', 'Are you sure you want to delete this note? This cannot be undone.', [
@@ -116,6 +123,37 @@ export default function NoteScreen() {
           <Text style={styles.dateText}>{displayDate}</Text>
         )}
 
+        <View style={styles.priorityRow}>
+          {PRIORITIES.map((p) => {
+            const pillStyle: ViewStyle[] = [
+              styles.priorityPill,
+              priority === p.value ? { backgroundColor: p.color, borderColor: p.color } : {},
+              !isEditing && priority !== p.value ? styles.priorityPillHidden : {},
+            ];
+            const textStyle = [
+              styles.priorityPillText,
+              priority === p.value && styles.priorityPillTextActive,
+              !isEditing && priority !== p.value && { color: 'transparent' as const },
+            ];
+            if (isEditing) {
+              return (
+                <TouchableOpacity
+                  key={p.value}
+                  style={pillStyle}
+                  onPress={() => setPriority(p.value)}
+                  activeOpacity={0.7}>
+                  <Text style={textStyle}>{p.label}</Text>
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <View key={p.value} style={pillStyle}>
+                <Text style={textStyle}>{p.label}</Text>
+              </View>
+            );
+          })}
+        </View>
+
         <View style={styles.divider} />
 
         <TextInput
@@ -158,6 +196,30 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontWeight: '500',
     marginBottom: 12,
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  priorityPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+  },
+  priorityPillHidden: {
+    borderColor: 'transparent',
+  },
+  priorityPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  priorityPillTextActive: {
+    color: '#FFFFFF',
   },
   divider: {
     height: 1,

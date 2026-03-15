@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,7 +11,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Note, useNotes } from '@/context/notes-context';
+import { Note, PRIORITY_CONFIG, Priority, useNotes } from '@/context/notes-context';
+
+type FilterOption = 'all' | Priority;
+
+const FILTERS: { value: FilterOption; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'important', label: 'Important' },
+  { value: 'not-so-important', label: 'Not So Important' },
+  { value: 'for-fun', label: 'For Fun' },
+];
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -31,11 +42,21 @@ function formatDate(iso: string): string {
 
 function NoteCard({ note, onPress }: { note: Note; onPress: () => void }) {
   const preview = note.content.trim().replace(/\n+/g, ' ');
+  const priorityConfig = PRIORITY_CONFIG[note.priority ?? 'for-fun'];
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <Text style={styles.cardTitle} numberOfLines={1}>
-        {note.title || 'Untitled'}
-      </Text>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {note.title || 'Untitled'}
+        </Text>
+        <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.backgroundRgba, borderColor: priorityConfig.borderRgba }]}>
+          <View style={[styles.priorityDot, { backgroundColor: priorityConfig.color }]} />
+          <Text style={[styles.priorityBadgeText, { color: priorityConfig.color }]}>
+            {priorityConfig.label}
+          </Text>
+        </View>
+      </View>
       {preview.length > 0 && (
         <Text style={styles.cardPreview} numberOfLines={2}>
           {preview}
@@ -46,12 +67,16 @@ function NoteCard({ note, onPress }: { note: Note; onPress: () => void }) {
   );
 }
 
-function EmptyState() {
+function EmptyState({ filtered }: { filtered: boolean }) {
   return (
     <View style={styles.emptyContainer}>
       <Ionicons name="document-text-outline" size={64} color="#C7C9D9" />
-      <Text style={styles.emptyTitle}>No notes yet</Text>
-      <Text style={styles.emptySubtitle}>Tap the + button to create your first note</Text>
+      <Text style={styles.emptyTitle}>{filtered ? 'No notes here' : 'No notes yet'}</Text>
+      <Text style={styles.emptySubtitle}>
+        {filtered
+          ? 'No notes match this filter'
+          : 'Tap the + button to create your first note'}
+      </Text>
     </View>
   );
 }
@@ -59,17 +84,40 @@ function EmptyState() {
 export default function NotesListScreen() {
   const { notes } = useNotes();
   const router = useRouter();
+  const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
+
+  const filteredNotes = activeFilter === 'all'
+    ? notes
+    : notes.filter((n) => (n.priority ?? 'for-fun') === activeFilter);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterBar}
+        style={styles.filterBarWrapper}>
+        {FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.value}
+            style={[styles.filterChip, activeFilter === f.value && styles.filterChipActive]}
+            onPress={() => setActiveFilter(f.value)}
+            activeOpacity={0.7}>
+            <Text style={[styles.filterChipText, activeFilter === f.value && styles.filterChipTextActive]}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       <FlatList
-        data={notes}
+        data={filteredNotes}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <NoteCard note={item} onPress={() => router.push(`/note/${item.id}`)} />
         )}
-        contentContainerStyle={notes.length === 0 ? styles.listEmpty : styles.listContent}
-        ListEmptyComponent={<EmptyState />}
+        contentContainerStyle={filteredNotes.length === 0 ? styles.listEmpty : styles.listContent}
+        ListEmptyComponent={<EmptyState filtered={activeFilter !== 'all'} />}
         showsVerticalScrollIndicator={false}
       />
 
@@ -87,6 +135,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F6FA',
+  },
+  filterBarWrapper: {
+    flexGrow: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+  },
+  filterBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  filterChipActive: {
+    backgroundColor: '#4F46E5',
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -107,11 +184,36 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+    gap: 8,
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 4,
+    flex: 1,
+  },
+  priorityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  priorityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  priorityBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   cardPreview: {
     fontSize: 14,
