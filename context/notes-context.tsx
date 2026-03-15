@@ -1,18 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
+export type Priority = 'important' | 'not-so-important' | 'for-fun';
+
 export interface Note {
   id: string;
   title: string;
   content: string;
+  priority: Priority;
   createdAt: string;
   updatedAt: string;
 }
 
 interface NotesContextValue {
   notes: Note[];
-  addNote: (title: string, content: string) => Promise<Note>;
-  updateNote: (id: string, title: string, content: string) => Promise<void>;
+  addNote: (title: string, content: string, priority: Priority) => Promise<Note>;
+  updateNote: (id: string, title: string, content: string, priority: Priority) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
   getNoteById: (id: string) => Note | undefined;
 }
@@ -26,7 +29,13 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (raw) setNotes(JSON.parse(raw));
+      if (raw) {
+        const loaded: Note[] = JSON.parse(raw).map((n: Note) => ({
+          ...n,
+          priority: n.priority ?? 'for-fun',
+        }));
+        setNotes(loaded);
+      }
     });
   }, []);
 
@@ -36,12 +45,13 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addNote = useCallback(
-    async (title: string, content: string): Promise<Note> => {
+    async (title: string, content: string, priority: Priority): Promise<Note> => {
       const now = new Date().toISOString();
       const note: Note = {
         id: Date.now().toString(),
         title,
         content,
+        priority,
         createdAt: now,
         updatedAt: now,
       };
@@ -52,10 +62,10 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateNote = useCallback(
-    async (id: string, title: string, content: string) => {
+    async (id: string, title: string, content: string, priority: Priority) => {
       persist(
         notes.map((n) =>
-          n.id === id ? { ...n, title, content, updatedAt: new Date().toISOString() } : n,
+          n.id === id ? { ...n, title, content, priority, updatedAt: new Date().toISOString() } : n,
         ),
       );
     },
